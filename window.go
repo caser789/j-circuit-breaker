@@ -59,6 +59,14 @@ type WindowSnapshot struct {
 	TimeoutPercent int
 }
 
+func (w WindowSnapshot) GetTimeoutPercent() int {
+	return w.TimeoutPercent
+}
+
+func (w WindowSnapshot) GetErrorPercent() int {
+	return w.ErrorPercent
+}
+
 func newSnapshot(c *counter) WindowSnapshot {
 	snapshot := WindowSnapshot{
 		TotalCount:   c.TotalCount,
@@ -227,4 +235,9 @@ func int64min(a, b int64) int64 {
 		return a
 	}
 	return b
+}
+
+type iWindowMetric interface {
+	update(outcome windowOutcome) WindowSnapshot
+	getSnapshot() WindowSnapshot
 }
