@@ -1,6 +1,12 @@
 package circuitbreaker
 
-import "sync"
+import (
+	"fmt"
+	"log"
+	"strings"
+	"sync"
+	"sync/atomic"
+)
 
 type windowOutcome uint32
 
@@ -112,4 +118,113 @@ func newCountWindowMetric(windowSize uint32) *countWindowMetric {
 	}
 	ca.endIndex = 0
 	return ca
+}
+
+type bucket struct {
+	counter
+	startTime int64
+}
+
+func (b *bucket) reset(currEpochSecond int64) {
+	b.startTime = currEpochSecond
+	b.TotalCount = 0
+	b.ErrorCount = 0
+	b.TimeoutCount = 0
+}
+
+type buckets []*bucket
+
+func (bs buckets) String() string {
+	s := make([]string, 0, len(bs))
+	for _, b := range bs {
+		s = append(s, fmt.Sprintf("%v", b))
+	}
+	return strings.Join(s, ",")
+}
+
+type timeWindowMetric struct {
+	capacity uint32
+	endIndex int
+
+	buckets buckets
+	total   *counter
+
+	updateLock sync.Mutex
+}
+
+func newTimeWindowMetricWithTime(windowSize uint32, now int64) *timeWindowMetric {
+	ca := &timeWindowMetric{
+		capacity: windowSize,
+		buckets:  make([]*bucket, windowSize),
+		total:    &counter{},
+	}
+
+	startTime := now
+	for i := int(windowSize) - 1; i >= 0; i-- {
+		b := &bucket{
+			startTime: startTime,
+			counter:   counter{},
+		}
+		ca.buckets[i%int(windowSize)] = b
+		startTime--
+
+	}
+	ca.endIndex = int(windowSize) - 1
+	return ca
+}
+
+func (t *timeWindowMetric) String() string {
+	return fmt.Sprintf("cap:%v,buckets:%v,endIndex:%v,total:%v", t.capacity, t.buckets, t.endIndex, t.total)
+}
+
+func (t *timeWindowMetric) moveWindowToCurrentSecond(now int64) *bucket {
+	currEpochSecond := now
+	latestBucket := t.buckets[t.endIndex]
+	differenceInSeconds := currEpochSecond - atomic.LoadInt64(&latestBucket.startTime)
+	if differenceInSeconds == 0 {
+		return latestBucket
+	}
+
+	secondsToMoveWindow := int64min(differenceInSeconds, int64(t.capacity))
+	var currentBucket *bucket
+	for {
+		secondsToMoveWindow--
+		t.endIndex = (t.endIndex + 1) % int(t.capacity)
+		currentBucket = t.buckets[t.endIndex]
+		t.total.subtract(&currentBucket.counter)
+		currentBucket.reset(currEpochSecond - secondsToMoveWindow)
+		if secondsToMoveWindow <= 0 {
+			if secondsToMoveWindow < 0 {
+				log.Printf("secondsToMoveWindow_below_0")
+			}
+			break
+		}
+	}
+	return currentBucket
+}
+
+func (t *timeWindowMetric) update(outcome windowOutcome) WindowSnapshot {
+	t.updateLock.Lock()
+	defer t.updateLock.Unlock()
+
+	now := currentTimeInSecond()
+	t.moveWindowToCurrentSecond(now).add(outcome)
+	t.total.add(outcome)
+	return newSnapshot(t.total)
+}
+
+func (t *timeWindowMetric) getSnapshot() WindowSnapshot {
+	t.updateLock.Lock()
+	defer t.updateLock.Unlock()
+
+	now := currentTimeInSecond()
+	t.moveWindowToCurrentSecond(now)
+	return newSnapshot(t.total)
+}
+
+func int64min(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
 }
