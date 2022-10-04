@@ -42,8 +42,7 @@ func loadClock() iClock {
 }
 
 func init() {
-	// c := newRealClock()
-	var c iClock
+	c := newRealClock()
 	currentClock = new(atomic.Value)
 	setClock(c)
 

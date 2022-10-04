@@ -140,3 +140,72 @@ func (s setting) isTimeout(duration time.Duration) bool {
 	}
 	return false
 }
+
+// NewDefaultConfig returns a Config with the default configurations.
+func NewDefaultConfig() Config {
+	return Config{
+		ErrorPercentThreshold:        50,
+		TimeoutPercentThreshold:      0,
+		TimeoutThreshold:             0,
+		MinimumNumberOfCalls:         100,
+		NumberOfCallsInSemiOpenState: 100,
+		WaitDurationInOpenState:      10 * time.Second,
+		MaxConcurrentCalls:           10000,
+		MaxWaitDurationMillis:        0,
+		SlidingWindowSize:            10,
+		UseCachedTime:                false,
+	}
+}
+
+func fillDefaultsAndGetSetting(config Config) setting {
+	newConfigFromDefaults := NewDefaultConfig()
+
+	// No checks enabled by default
+	checkers := make([]healthChecker, 0)
+
+	if config.ErrorPercentThreshold > 0 {
+		newConfigFromDefaults.ErrorPercentThreshold = config.ErrorPercentThreshold
+		checkers = append(checkers, errorPercentChecker)
+	}
+
+	if config.TimeoutPercentThreshold > 0 {
+		newConfigFromDefaults.TimeoutPercentThreshold = config.TimeoutPercentThreshold
+		checkers = append(checkers, timeoutPercentChecker)
+	}
+
+	if config.ErrorPercentThreshold == 0 && config.TimeoutPercentThreshold <= 0 {
+		// Enable error percent checker which will be set to default value
+		checkers = append(checkers, errorPercentChecker)
+	}
+
+	if config.WaitDurationInOpenState != 0 {
+		newConfigFromDefaults.WaitDurationInOpenState = config.WaitDurationInOpenState
+	}
+	if config.SlidingWindowSize != 0 {
+		newConfigFromDefaults.SlidingWindowSize = config.SlidingWindowSize
+	}
+	if config.MinimumNumberOfCalls != 0 {
+		newConfigFromDefaults.MinimumNumberOfCalls = config.MinimumNumberOfCalls
+	}
+	if config.TimeoutThreshold != 0 {
+		newConfigFromDefaults.TimeoutThreshold = config.TimeoutThreshold
+	}
+	if config.NumberOfCallsInSemiOpenState != 0 {
+		newConfigFromDefaults.NumberOfCallsInSemiOpenState = config.NumberOfCallsInSemiOpenState
+	}
+	if config.MaxConcurrentCalls != 0 {
+		newConfigFromDefaults.MaxConcurrentCalls = config.MaxConcurrentCalls
+	}
+	if config.MaxWaitDurationMillis > 0 {
+		newConfigFromDefaults.MaxWaitDurationMillis = config.MaxWaitDurationMillis
+	}
+
+	newConfigFromDefaults.MetricConfig = config.MetricConfig
+	newConfigFromDefaults.UseCachedTime = config.UseCachedTime
+
+	newSetting := setting{
+		Config:   newConfigFromDefaults,
+		checkers: checkers,
+	}
+	return newSetting
+}
