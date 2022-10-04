@@ -12,6 +12,11 @@ type iSnapshot interface {
 	GetErrorPercent() int
 }
 
+type iConcurrentCallGetter interface {
+	iSnapshot
+	GetNumConcurrentCalls() int
+}
+
 type iSetting interface {
 	GetTimeoutPercentThreshold() int
 	GetErrorPercentThreshold() int
