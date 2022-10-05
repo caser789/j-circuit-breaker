@@ -307,3 +307,20 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+func newStateInstance(to State, s setting) iState {
+	var newState iState
+	switch to {
+	case Closed:
+		newState = newClosedState(s)
+	case Open:
+		newState = newOpenState(s)
+	case SemiOpen:
+		newState = newSemiOpenState(s)
+	case ForcedOpen:
+		newState = newForcedOpenState(s)
+	case ForcedClosed:
+		newState = newForcedClosedState(s)
+	}
+	return newState
+}

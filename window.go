@@ -67,6 +67,10 @@ func (w WindowSnapshot) GetErrorPercent() int {
 	return w.ErrorPercent
 }
 
+func (w WindowSnapshot) GetTotalCount() int64 {
+	return w.TotalCount
+}
+
 func newSnapshot(c *counter) WindowSnapshot {
 	snapshot := WindowSnapshot{
 		TotalCount:   c.TotalCount,

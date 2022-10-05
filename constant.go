@@ -20,6 +20,27 @@ const (
 	reset
 )
 
+func (r transitionReason) String() string {
+	switch r {
+	case invalidTransition:
+		return "invalid_transition"
+	case errorThresholdExceeded:
+		return "error_threshold_exceed"
+	case timeoutThresholdExceeded:
+		return "timeout_threshold_exceed"
+	case waitInOpenElapsed:
+		return "wait_in_open_elapsed"
+	case failurePercentsBelowThresholds:
+		return "failure_percents_below_thresholds"
+	case manualTransition:
+		return "manual_transition"
+	case reset:
+		return "reset"
+	default:
+		return "unknown_reason"
+	}
+}
+
 // CircuitError models the different types of failures in execution due to the current CircuitBreaker state.
 // CircuitError is returned by the Protect() function when the RunFunc is blocked from executing.
 type CircuitError struct {
@@ -53,3 +74,18 @@ var (
 	// ErrBreakerNotFound is returned when CircuitBreaker with the given name does not exist.
 	ErrBreakerNotFound = CircuitError{message: "breaker_not_found"}
 )
+
+var validAutomaticStateTransitions = map[State]map[State]bool{
+	Closed: {
+		Open: true,
+	},
+	Open: {
+		SemiOpen: true,
+	},
+	SemiOpen: {
+		Closed: true,
+		Open:   true,
+	},
+	ForcedClosed: {},
+	ForcedOpen:   {},
+}

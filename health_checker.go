@@ -10,6 +10,7 @@ const (
 type iSnapshot interface {
 	GetTimeoutPercent() int
 	GetErrorPercent() int
+	GetTotalCount() int64
 }
 
 type iConcurrentCallGetter interface {
@@ -36,4 +37,22 @@ func (h healthChecker) isThresholdExceed(snapshot iSnapshot, setting iSetting) (
 		return false, invalidTransition
 	}
 	return false, invalidTransition
+}
+
+type stateSnapshot struct {
+	WindowSnapshot
+	NumConcurrentCalls int
+}
+
+func (s stateSnapshot) GetNumConcurrentCalls() int {
+	return s.NumConcurrentCalls
+}
+
+func getStateSnapshot(state iState, cl concurrencyLimiter) iConcurrentCallGetter {
+	windowSnapshot := state.getWindowMetrics().getSnapshot()
+	concurrencyCount := cl.getCount(state.shouldCheckForMaxConcurrency())
+	return stateSnapshot{
+		WindowSnapshot:     windowSnapshot,
+		NumConcurrentCalls: concurrencyCount,
+	}
 }

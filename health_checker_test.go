@@ -76,6 +76,11 @@ type dummySnapshot struct {
 	errorPercent   int
 }
 
+func (d *dummySnapshot) GetTotalCount() int64 {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (d *dummySnapshot) GetTimeoutPercent() int { return d.timeoutPercent }
 func (d *dummySnapshot) GetErrorPercent() int   { return d.errorPercent }
 
